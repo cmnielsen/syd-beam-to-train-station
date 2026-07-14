@@ -1,4 +1,13 @@
 ---------------------------------------------------------------------------------------------------
+Version: 2.0.2
+Date: 2026-07-15
+
+  Minor Features:
+    - Train station list now refreshes automatically whenever a stations is created, destroyed or renamed
+    - Added a toggle to open/close the interface for both shortcut and hotkey
+    - Now the train station list is limited only to stations on the current surface the player is
+
+---------------------------------------------------------------------------------------------------
 Version: 2.0.1
 Date: 2024-11-02
 
