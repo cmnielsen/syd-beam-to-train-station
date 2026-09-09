@@ -278,12 +278,15 @@ function teleport_gui_draw(gui, train_stations_list, filter_toggle, firstLoad, p
         dd_flow.add{type="label", name="teleport-ts-gui-dd-label", caption={"mod-interface.teleport-ts-gui-dd-caption"}}
         dd_flow.add(teleport_ts_dropdown)
 
-        if count_train_homonyms(player_surface, train_stations_list[1]) > 1 or is_homonyms then
-            teleport_ts_btn = {type="button", name="teleport-ts-gui-btn", caption={"mod-interface.teleport-ts-button-more"}}
-        else
-            teleport_ts_btn = {type="button", name="teleport-ts-gui-btn", caption={"mod-interface.teleport-ts-button"}}
+        local instant_beam = settings.get_player_settings(player_index)["teleport-ts-instant-beam"].value
+        if not instant_beam then
+            if count_train_homonyms(player_surface, train_stations_list[1]) > 1 or is_homonyms then
+                teleport_ts_btn = {type="button", name="teleport-ts-gui-btn", caption={"mod-interface.teleport-ts-button-more"}}
+            else
+                teleport_ts_btn = {type="button", name="teleport-ts-gui-btn", caption={"mod-interface.teleport-ts-button"}}
+            end
+            dd_flow.add(teleport_ts_btn)
         end
-        dd_flow.add(teleport_ts_btn)      
     else 
         local dd_flow = teleport_gui.add{type="flow", name="dd_flow"}
         dd_flow.add{type="label",  caption={"mod-interface.teleport-ts-gui-dd-empty-caption"}}
@@ -333,7 +336,14 @@ script.on_event(defines.events.on_gui_selection_state_changed, function(event)
         local gui_win = game.players[event.player_index].gui.screen["teleport-ts-gui"]
         local player_surface = game.players[event.player_index].surface
         local station_selected = gui_win.dd_flow["teleport-ts-gui-dd"].selected_index
-        local station_list = get_train_stations_list(player_surface)
+        local station_list = get_train_stations_list(player_surface, train_station_filter)
+        if not station_list[station_selected] then
+            return
+        end
+        if settings.get_player_settings(event.player_index)["teleport-ts-instant-beam"].value then
+            train_station_teleport(event.player_index, station_selected)
+            return
+        end
         local total_stations = count_train_homonyms(player_surface, station_list[station_selected].name)
         if total_stations > 1 then
             gui_win.dd_flow["teleport-ts-gui-btn"].caption={"mod-interface.teleport-ts-button-more"}
@@ -532,6 +542,18 @@ function auto_update_gui(player_index)
         end
     end
 end
+
+script.on_event(defines.events.on_runtime_mod_setting_changed, function(event)
+    if event.setting ~= "teleport-ts-instant-beam" then
+        return
+    end
+
+    local player = game.players[event.player_index]
+    local gui = player and player.gui.screen["teleport-ts-gui"]
+    if gui then
+        rebuild_teleport_gui(event.player_index, gui)
+    end
+end)
 
 local function refresh_open_teleport_guis()
     for _, player in pairs(game.players) do
