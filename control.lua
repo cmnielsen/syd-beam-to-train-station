@@ -272,7 +272,11 @@ function teleport_gui_draw(gui, train_stations_list, filter_toggle, firstLoad, p
             ts_dropdown_style = "teleport_ts_dropdown_style_40"
         end
        
-        local teleport_ts_dropdown = {type="drop-down", name="teleport-ts-gui-dd", style=ts_dropdown_style, items=train_stations_list, selected_index=1}
+        local dropdown_items = {{"mod-interface.teleport-ts-select-station"}}
+        for _, station_name in ipairs(train_stations_list) do
+            table.insert(dropdown_items, station_name)
+        end
+        local teleport_ts_dropdown = {type="drop-down", name="teleport-ts-gui-dd", style=ts_dropdown_style, items=dropdown_items, selected_index=1}
 
         local dd_flow = teleport_gui.add{type="flow", name="dd_flow"}            
         dd_flow.add{type="label", name="teleport-ts-gui-dd-label", caption={"mod-interface.teleport-ts-gui-dd-caption"}}
@@ -335,13 +339,14 @@ script.on_event(defines.events.on_gui_selection_state_changed, function(event)
     if (event.element.name=="teleport-ts-gui-dd") then
         local gui_win = game.players[event.player_index].gui.screen["teleport-ts-gui"]
         local player_surface = game.players[event.player_index].surface
-        local station_selected = gui_win.dd_flow["teleport-ts-gui-dd"].selected_index
+        local station_selected = gui_win.dd_flow["teleport-ts-gui-dd"].selected_index - 1
         local station_list = get_train_stations_list(player_surface, train_station_filter)
-        if not station_list[station_selected] then
+        if station_selected < 1 or not station_list[station_selected] then
             return
         end
         if settings.get_player_settings(event.player_index)["teleport-ts-instant-beam"].value then
             train_station_teleport(event.player_index, station_selected)
+            gui_win.dd_flow["teleport-ts-gui-dd"].selected_index = 1
             return
         end
         local total_stations = count_train_homonyms(player_surface, station_list[station_selected].name)
@@ -371,7 +376,11 @@ script.on_event(defines.events.on_gui_click, function(event)
     resyncTeleportGui(event.player_index)   
     if (event.element.name=="teleport-ts-gui-btn") then
         local gui_win = game.players[event.player_index].gui.screen["teleport-ts-gui"]
-        train_station_teleport(event.player_index, gui_win.dd_flow["teleport-ts-gui-dd"].selected_index)    
+        local station_selected = gui_win.dd_flow["teleport-ts-gui-dd"].selected_index - 1
+        if station_selected < 1 then
+            return
+        end
+        train_station_teleport(event.player_index, station_selected)
 
     elseif (event.element.name=="teleport-ts-gui-toggle-filter") then
         local gui_win = game.players[event.player_index].gui.screen["teleport-ts-gui"].title_flow
@@ -452,7 +461,8 @@ local function rebuild_teleport_gui(player_index, gui)
     if gui.dd_flow and gui.dd_flow["teleport-ts-gui-dd"] then
         local dropdown = gui.dd_flow["teleport-ts-gui-dd"]
         local current_items = dropdown.items
-        if dropdown.selected_index and current_items and dropdown.selected_index <= #current_items then
+        if dropdown.selected_index and dropdown.selected_index > 1 and
+           current_items and dropdown.selected_index <= #current_items then
             -- Read the selected name from the GUI before rebuilding. The station
             -- list may already have changed (for example after a rename), so
             -- looking it up again by index can select the wrong station.
@@ -470,7 +480,8 @@ local function rebuild_teleport_gui(player_index, gui)
             local new_train_stations_list = get_train_stations_list(game.players[player_index].surface, train_station_filter)
             for i, station in ipairs(new_train_stations_list) do
                 if station.name == selected_station_name then
-                    new_gui.dd_flow["teleport-ts-gui-dd"].selected_index = i
+                    -- Index 1 is reserved for the placeholder item.
+                    new_gui.dd_flow["teleport-ts-gui-dd"].selected_index = i + 1
                     break
                 end
             end
